@@ -6,7 +6,7 @@ Expo SDK 58 · React Native 0.88 · TypeScript · Expo Router · expo-sqlite. Ev
 
 ## Run it
 
-Requirements: Node 22.13+ or 24.3+ and the **Expo Go** app on your phone ([iOS](https://apps.apple.com/app/expo-go/id982107779) / [Android](https://play.google.com/store/apps/details?id=host.exp.exponent)). Expo Go must support SDK 58; update it from the store if it says the project is incompatible.
+Requirements: Node 22.13+ or 24.3+ and the **Expo Go** app on your phone ([iOS](https://apps.apple.com/app/expo-go/id982107779) / [Android](https://play.google.com/store/apps/details?id=host.exp.exponent)). Expo Go must support SDK 58. App-store builds can lag behind a new SDK; if Expo Go says the project is incompatible, install the current build from https://expo.dev/go.
 
 ```sh
 git clone https://github.com/andyglzrivas/bento-app.git
@@ -15,7 +15,7 @@ npm install
 npx expo start
 ```
 
-Scan the QR code with the Camera app (iOS) or from inside Expo Go (Android). Phone and computer must be on the same network; if they aren't (or the connection hangs), use `npx expo start --tunnel`.
+Scan the QR code with the Camera app (iOS) or from inside Expo Go (Android). Phone and computer must be on the same network; if they aren't (or the connection hangs), use `npx expo start --tunnel` (requires `npx expo login` first).
 
 Other targets:
 
