@@ -2,7 +2,7 @@
 
 A personal productivity app built from tiles. The home screen is a grid; each tile is a self-contained feature module (to-do list, gym tracker, …) with its own screen, home-grid preview, and database tables.
 
-Expo SDK 58 · React Native 0.88 · TypeScript · Expo Router · expo-sqlite. Everything is stored on the device; there is no backend.
+Expo SDK 58 · React Native 0.88 · TypeScript · Expo Router. Everything is stored on the device as JSON files (expo-file-system); there is no backend. Every dependency ships in Expo Go, so no development build is needed.
 
 ## Run it
 
@@ -20,7 +20,7 @@ Scan the QR code with the Camera app (iOS) or from inside Expo Go (Android). Pho
 Other targets:
 
 - `npm run ios` / `npm run android`: open in a simulator or emulator, if you have Xcode or Android Studio installed.
-- `npm run web`: run in the browser. SQLite runs as WebAssembly there; `metro.config.js` exists only to make that work.
+- `npm run web`: run in the browser (data goes to localStorage there).
 
 Checks:
 
@@ -34,7 +34,7 @@ npm run lint
 ```
 src/
   app/                 Expo Router routes (every file is a screen)
-    _layout.tsx        SQLiteProvider + stack navigator
+    _layout.tsx        stack navigator
     index.tsx          home grid
     tile/[id].tsx      renders a tile's full screen
   tiles/
@@ -42,9 +42,10 @@ src/
     registry.ts        the list of tiles shown on the home grid
     todo/              to-do module
     gym/               gym tracker module
-  db/
-    migrate.ts         runs each tile's migrations on startup
-    useQuery.ts        SELECT hook that refreshes when a screen regains focus
+  store/
+    collection.ts      useCollection(): persisted list of docs, shared across components
+    backend.ts         native storage: one JSON file per collection
+    backend.web.ts     web storage: localStorage
   components/          shared UI (TileCard, Input, Button)
   theme.ts             light/dark colors
 ```
@@ -57,14 +58,11 @@ src/
    import type { TileModule } from '../types';
 
    export const notesTile: TileModule = {
-     id: 'notes', // stable; used in the URL and to track migrations
+     id: 'notes', // stable; used in the URL and collection names
      title: 'Notes',
      emoji: '📝',
      color: '#E3D7F7',
      span: 1, // 1 = half width, 2 = full width
-     migrations: [
-       `CREATE TABLE notes_items (id INTEGER PRIMARY KEY AUTOINCREMENT, body TEXT NOT NULL);`,
-     ],
      Screen: NotesScreen,
      Preview: NotesPreview, // optional
    };
@@ -72,12 +70,25 @@ src/
 
 2. Add it to the array in `src/tiles/registry.ts`. Array order is grid order.
 
-That's it: the route `/tile/notes` and the table exist on next launch.
+That's it: the route `/tile/notes` exists on next launch.
 
-**Migrations are append-only.** Each tile's schema version is stored in the `tile_schema` table. To change a shipped table, append a new SQL string (e.g. `ALTER TABLE …`) rather than editing an existing one, or devices that already ran the old version will never see the change. Prefix table names with the tile id so modules can't collide.
+Inside a tile, persist data with `useCollection`:
 
-Inside a tile, use `useSQLiteContext()` from `expo-sqlite` for writes and `useQuery()` from `@/db/useQuery` for reads.
+```ts
+import { useCollection } from '@/store/collection';
+
+type Note = { id: string; body: string };
+const notes = useCollection<Note>('notes.items'); // prefix with the tile id
+notes.add({ body: 'hi' });          // id is generated
+notes.update(id, { body: 'edited' });
+notes.remove(id);
+notes.docs;                         // current list; re-renders on change
+```
+
+Every component using the same collection name shares one in-memory copy, so a tile's screen and its home-grid preview update together. Records are plain JSON: when you add a field later, treat it as optional when reading old records.
 
 ## Data
 
-The database is `bento.db` in the app's sandbox. In Expo Go, deleting Expo Go's data (or reinstalling it) wipes it. There's no export or sync yet.
+Data lives in `<app documents>/bento/<collection>.json`. In Expo Go, clearing Expo Go's data (or reinstalling it) wipes it. There's no export or sync yet.
+
+Why not SQLite: Expo Go 58.0.5 on Android does not ship the `ExpoSQLite` native module, so `expo-sqlite` crashes on launch there. If the app later moves to a development build, swapping `src/store/backend.ts` for SQLite is a contained change.

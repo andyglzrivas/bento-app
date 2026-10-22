@@ -1,14 +1,12 @@
 import { Stack } from 'expo-router';
-import { SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 
-import { migrate } from '@/db/migrate';
 import { useTheme } from '@/theme';
 
 export default function RootLayout() {
   const theme = useTheme();
   return (
-    <SQLiteProvider databaseName="bento.db" onInit={migrate}>
+    <>
       <StatusBar style="auto" />
       <Stack
         screenOptions={{
@@ -22,6 +20,6 @@ export default function RootLayout() {
         <Stack.Screen name="index" options={{ title: 'bento' }} />
         <Stack.Screen name="tile/[id]" />
       </Stack>
-    </SQLiteProvider>
+    </>
   );
 }

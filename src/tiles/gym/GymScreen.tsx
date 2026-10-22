@@ -1,18 +1,14 @@
-import { useSQLiteContext } from 'expo-sqlite';
 import { useMemo, useState } from 'react';
 import { Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 
 import { Button, Input } from '@/components/ui';
-import { useQuery } from '@/db/useQuery';
 import { useTheme } from '@/theme';
 
-import { formatDay, recentExercises, recentSets, type GymSet } from './queries';
+import { formatDay, useGymSets } from './store';
 
 export function GymScreen() {
-  const db = useSQLiteContext();
   const theme = useTheme();
-  const sets = useQuery<GymSet>(recentSets);
-  const exercises = useQuery<{ exercise: string }>(recentExercises);
+  const gym = useGymSets();
 
   const [exercise, setExercise] = useState('');
   const [weight, setWeight] = useState('');
@@ -22,40 +18,22 @@ export function GymScreen() {
   const r = Number.parseInt(reps, 10);
   const valid = exercise.trim() !== '' && weight !== '' && Number.isFinite(w) && w >= 0 && r > 0;
 
-  async function logSet() {
+  function logSet() {
     if (!valid) return;
-    await db.runAsync(
-      'INSERT INTO gym_sets (exercise, weight, reps) VALUES (?, ?, ?)',
-      exercise.trim(),
-      w,
-      r,
-    );
+    gym.add({ exercise: exercise.trim(), weight: w, reps: r, performedAt: Date.now() });
     // Keep exercise and weight filled: the next set is usually the same lift.
     setReps('');
-    sets.reload();
-    exercises.reload();
   }
 
-  async function remove(id: number) {
-    await db.runAsync('DELETE FROM gym_sets WHERE id = ?', id);
-    sets.reload();
-    exercises.reload();
-  }
-
-  const sections = useMemo(() => {
-    const byDay = new Map<string, GymSet[]>();
-    for (const s of sets.rows) {
-      const list = byDay.get(s.day) ?? [];
-      list.push(s);
-      byDay.set(s.day, list);
-    }
-    return [...byDay].map(([day, data]) => ({ title: formatDay(day), data }));
-  }, [sets.rows]);
+  const sections = useMemo(
+    () => gym.days.map(({ day, data }) => ({ title: formatDay(day), data })),
+    [gym.days],
+  );
 
   return (
     <SectionList
       sections={sections}
-      keyExtractor={(s) => String(s.id)}
+      keyExtractor={(s) => s.id}
       contentContainerStyle={styles.list}
       keyboardShouldPersistTaps="handled"
       stickySectionHeadersEnabled={false}
@@ -67,9 +45,9 @@ export function GymScreen() {
             placeholder="Exercise"
             autoCapitalize="words"
           />
-          {exercises.rows.length > 0 ? (
+          {gym.recentExercises.length > 0 ? (
             <View style={styles.chips}>
-              {exercises.rows.map(({ exercise: name }) => (
+              {gym.recentExercises.map((name) => (
                 <Pressable
                   key={name}
                   onPress={() => setExercise(name)}
@@ -117,7 +95,11 @@ export function GymScreen() {
           <Text style={{ color: theme.text, fontVariant: ['tabular-nums'] }}>
             {item.weight} × {item.reps}
           </Text>
-          <Pressable onPress={() => remove(item.id)} hitSlop={12} accessibilityLabel="Delete set">
+          <Pressable
+            onPress={() => gym.remove(item.id)}
+            hitSlop={12}
+            accessibilityLabel="Delete set"
+          >
             <Text style={{ color: theme.danger, fontSize: 16 }}>✕</Text>
           </Pressable>
         </View>

@@ -1,16 +1,14 @@
 import { StyleSheet, Text } from 'react-native';
 
-import { useQuery } from '@/db/useQuery';
-
-import { listOpenTodos, type TodoItem } from './queries';
+import { useTodos } from './store';
 
 export function TodoPreview() {
-  const { rows } = useQuery<TodoItem>(listOpenTodos);
-  if (rows.length === 0) return <Text style={styles.muted}>All clear</Text>;
+  const { open } = useTodos();
+  if (open.length === 0) return <Text style={styles.muted}>All clear</Text>;
   return (
     <>
-      <Text style={styles.count}>{rows.length} open</Text>
-      {rows.slice(0, 3).map((t) => (
+      <Text style={styles.count}>{open.length} open</Text>
+      {open.slice(0, 3).map((t) => (
         <Text key={t.id} style={styles.item} numberOfLines={1}>
           • {t.title}
         </Text>

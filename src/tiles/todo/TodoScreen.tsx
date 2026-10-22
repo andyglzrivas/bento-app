@@ -1,35 +1,21 @@
-import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Button, Input } from '@/components/ui';
-import { useQuery } from '@/db/useQuery';
 import { useTheme } from '@/theme';
 
-import { listTodos, type TodoItem } from './queries';
+import { useTodos } from './store';
 
 export function TodoScreen() {
-  const db = useSQLiteContext();
   const theme = useTheme();
-  const { rows, reload } = useQuery<TodoItem>(listTodos);
+  const todos = useTodos();
   const [draft, setDraft] = useState('');
 
-  async function add() {
+  function add() {
     const title = draft.trim();
     if (!title) return;
-    await db.runAsync('INSERT INTO todo_items (title) VALUES (?)', title);
+    todos.add({ title, done: false, createdAt: Date.now() });
     setDraft('');
-    reload();
-  }
-
-  async function toggle(item: TodoItem) {
-    await db.runAsync('UPDATE todo_items SET done = ? WHERE id = ?', item.done ? 0 : 1, item.id);
-    reload();
-  }
-
-  async function remove(item: TodoItem) {
-    await db.runAsync('DELETE FROM todo_items WHERE id = ?', item.id);
-    reload();
   }
 
   return (
@@ -46,8 +32,8 @@ export function TodoScreen() {
         <Button label="Add" onPress={add} disabled={!draft.trim()} />
       </View>
       <FlatList
-        data={rows}
-        keyExtractor={(t) => String(t.id)}
+        data={todos.sorted}
+        keyExtractor={(t) => t.id}
         contentContainerStyle={styles.list}
         keyboardShouldPersistTaps="handled"
         ListEmptyComponent={
@@ -56,10 +42,10 @@ export function TodoScreen() {
         renderItem={({ item }) => (
           <View style={[styles.row, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <Pressable
-              onPress={() => toggle(item)}
+              onPress={() => todos.update(item.id, { done: !item.done })}
               style={styles.rowMain}
               accessibilityRole="checkbox"
-              accessibilityState={{ checked: !!item.done }}
+              accessibilityState={{ checked: item.done }}
             >
               <Text style={styles.check}>{item.done ? '☑' : '☐'}</Text>
               <Text
@@ -73,7 +59,7 @@ export function TodoScreen() {
               </Text>
             </Pressable>
             <Pressable
-              onPress={() => remove(item)}
+              onPress={() => todos.remove(item.id)}
               hitSlop={12}
               accessibilityLabel={`Delete ${item.title}`}
             >
